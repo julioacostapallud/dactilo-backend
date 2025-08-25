@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool, handleError } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
+  let query = '';
+  let description = '';
+  
   try {
-    const { query, description } = await request.json();
+    const body = await request.json();
+    query = body.query;
+    description = body.description;
 
     // Validaciones básicas
     if (!query) {
@@ -70,6 +75,7 @@ export async function POST(request: NextRequest) {
       success: false,
       error: error instanceof Error ? error.message : 'Error desconocido',
       query: query,
+      description: description,
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
