@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const client = await pool.connect();
     
     try {
-      let query = 'SELECT * FROM practice_texts';
+      let query = 'SELECT * FROM ejercicios';
       const params: any[] = [];
       let paramCount = 0;
 
@@ -20,13 +20,13 @@ export async function GET(request: NextRequest) {
       
       if (dificultad) {
         paramCount++;
-        conditions.push(`"difficultyLevel" = $${paramCount}`);
-        params.push(parseInt(dificultad));
+        conditions.push(`dificultad = $${paramCount}`);
+        params.push(dificultad);
       }
 
       if (categoria) {
         paramCount++;
-        conditions.push(`"categoryId" = (SELECT id FROM text_categories WHERE name = $${paramCount})`);
+        conditions.push(`categoria = $${paramCount}`);
         params.push(categoria);
       }
 
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         query += ' WHERE ' + conditions.join(' AND ');
       }
 
-      query += ' ORDER BY "createdAt" DESC LIMIT $' + (paramCount + 1);
+      query += ' ORDER BY created_at DESC LIMIT $' + (paramCount + 1);
       params.push(parseInt(limit));
 
       const result = await client.query(query, params);
@@ -68,21 +68,9 @@ export async function POST(request: NextRequest) {
     const client = await pool.connect();
     
     try {
-      // Primero obtener el categoryId si se proporciona una categoría
-      let categoryId = null;
-      if (categoria) {
-        const categoryResult = await client.query(
-          'SELECT id FROM text_categories WHERE name = $1',
-          [categoria]
-        );
-        if (categoryResult.rows.length > 0) {
-          categoryId = categoryResult.rows[0].id;
-        }
-      }
-
       const result = await client.query(
-        'INSERT INTO practice_texts (title, content, "wordCount", "categoryId", "difficultyLevel") VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [titulo, texto, texto.split(' ').length, categoryId, parseInt(dificultad) || 1]
+        'INSERT INTO ejercicios (titulo, descripcion, texto, dificultad, categoria) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [titulo, descripcion, texto, dificultad || 'facil', categoria]
       );
 
       return NextResponse.json({
