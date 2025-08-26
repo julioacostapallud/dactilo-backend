@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { pool, handleError } from '@/lib/db';
 import { headers } from 'next/headers';
 
 // Función para obtener información del dispositivo
@@ -64,30 +64,42 @@ export async function POST(request: NextRequest) {
     // Obtener información del dispositivo
     const { deviceType, browser, os } = getDeviceInfo(userAgent);
     
-    // Insertar nueva visita (simplificado para pruebas)
-    const result = await sql`
-      INSERT INTO page_visits (
-        user_id, page_url, referrer_url, ip_address, user_agent, 
-        device_type, browser, os, session_id, visit_start
-      ) VALUES (
-        ${userId || null}, ${pageUrl}, ${referrerUrl || null}, 
-        ${ipAddress}, ${userAgent}, ${deviceType}, ${browser}, ${os}, 
-        ${sessionId}, NOW()
-      ) RETURNING id
-    `;
+    const client = await pool.connect();
     
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Visita registrada exitosamente',
-      visitId: result.rows[0].id 
-    });
+    try {
+      // Insertar nueva visita
+      const query = `
+        INSERT INTO page_visits (
+          user_id, page_url, referrer_url, ip_address, user_agent, 
+          device_type, browser, os, session_id, visit_start
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        RETURNING id
+      `;
+      
+      const result = await client.query(query, [
+        userId || null, 
+        pageUrl, 
+        referrerUrl || null, 
+        ipAddress, 
+        userAgent, 
+        deviceType, 
+        browser, 
+        os, 
+        sessionId
+      ]);
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Visita registrada exitosamente',
+        visitId: result.rows[0].id 
+      });
+      
+    } finally {
+      client.release();
+    }
     
   } catch (error) {
-    console.error('Error registrando visita:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor: ' + error.message },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -98,51 +110,53 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
     
-    // Obtener visitas con paginación
-    const visits = await sql`
-      SELECT 
-        pv.id,
-        pv.page_url,
-        pv.referrer_url,
-        pv.ip_address,
-        pv.device_type,
-        pv.browser,
-        pv.os,
-        pv.session_id,
-        pv.visit_start,
-        pv.visit_end,
-        pv.time_on_page_seconds,
-        u.email as user_email
-      FROM page_visits pv
-      LEFT JOIN users u ON pv.user_id = u.id
-      ORDER BY pv.visit_start DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    const client = await pool.connect();
     
-    // Obtener total de visitas
-    const totalResult = await sql`
-      SELECT COUNT(*) as total FROM page_visits
-    `;
-    
-    const total = parseInt(totalResult.rows[0].total);
-    
-    return NextResponse.json({
-      success: true,
-      visits: visits.rows,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
-    });
+    try {
+      // Obtener visitas con paginación
+      const visitsQuery = `
+        SELECT 
+          pv.id,
+          pv.page_url,
+          pv.referrer_url,
+          pv.ip_address,
+          pv.device_type,
+          pv.browser,
+          pv.os,
+          pv.session_id,
+          pv.visit_start,
+          pv.visit_end,
+          pv.time_on_page_seconds,
+          u.email as user_email
+        FROM page_visits pv
+        LEFT JOIN users u ON pv.user_id = u.id
+        ORDER BY pv.visit_start DESC
+        LIMIT $1 OFFSET $2
+      `;
+      
+      const visits = await client.query(visitsQuery, [limit, offset]);
+      
+      // Obtener total de visitas
+      const totalResult = await client.query('SELECT COUNT(*) as total FROM page_visits');
+      const total = parseInt(totalResult.rows[0].total);
+      
+      return NextResponse.json({
+        success: true,
+        visits: visits.rows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+      
+    } finally {
+      client.release();
+    }
     
   } catch (error) {
-    console.error('Error obteniendo visitas:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -152,22 +166,27 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { visitId, timeOnPageSeconds } = body;
     
-    await sql`
-      UPDATE page_visits 
-      SET visit_end = NOW(), time_on_page_seconds = ${timeOnPageSeconds}
-      WHERE id = ${visitId}
-    `;
+    const client = await pool.connect();
     
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Visita actualizada exitosamente' 
-    });
+    try {
+      const query = `
+        UPDATE page_visits 
+        SET visit_end = NOW(), time_on_page_seconds = $1
+        WHERE id = $2
+      `;
+      
+      await client.query(query, [timeOnPageSeconds, visitId]);
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Visita actualizada exitosamente' 
+      });
+      
+    } finally {
+      client.release();
+    }
     
   } catch (error) {
-    console.error('Error actualizando visita:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
