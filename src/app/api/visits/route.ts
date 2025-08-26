@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
       // Insertar nueva visita
       const query = `
         INSERT INTO page_visits (
-          user_id, page_url, referrer_url, ip_address, user_agent, 
-          device_type, browser, os, session_id, visit_start
+          "userId", "pageUrl", "referrerUrl", "ipAddress", "userAgent", 
+          "deviceType", "browser", "os", "sessionId", "visitStart"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         RETURNING id
       `;
@@ -117,19 +117,19 @@ export async function GET(request: NextRequest) {
       const visitsQuery = `
         SELECT 
           id,
-          page_url,
-          referrer_url,
-          ip_address,
-          device_type,
-          browser,
-          os,
-          session_id,
-          visit_start,
-          visit_end,
-          time_on_page_seconds,
-          user_id
+          "pageUrl",
+          "referrerUrl",
+          "ipAddress",
+          "deviceType",
+          "browser",
+          "os",
+          "sessionId",
+          "visitStart",
+          "visitEnd",
+          "timeOnPageSeconds",
+          "userId"
         FROM page_visits
-        ORDER BY visit_start DESC
+        ORDER BY "visitStart" DESC
         LIMIT $1 OFFSET $2
       `;
       
@@ -170,7 +170,7 @@ export async function PUT(request: NextRequest) {
     try {
       const query = `
         UPDATE page_visits 
-        SET visit_end = NOW(), time_on_page_seconds = $1
+        SET "visitEnd" = NOW(), "timeOnPageSeconds" = $1
         WHERE id = $2
       `;
       
