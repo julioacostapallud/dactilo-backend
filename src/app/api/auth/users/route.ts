@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Simulación de base de datos - en producción esto vendría de tu BD real
-const users = [
-  {
-    id: '1',
-    email: 'test@example.com',
-    name: 'Usuario Test',
-    created_at: '2024-08-26T20:00:00.000Z'
-  }
-];
+import { getAllUsers } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
     // En un entorno real, aquí verificarías autenticación y permisos
-    // Por ahora, retornamos todos los usuarios sin contraseñas
+    // Por ahora, retornamos todos los usuarios
+    
+    const users = await getAllUsers();
     
     const usersWithoutPasswords = users.map(user => ({
       id: user.id,
       email: user.email,
       name: user.name,
-      created_at: user.created_at
+      image_url: user.image_url,
+      provider: user.provider,
+      created_at: user.created_at,
+      updated_at: user.updated_at
     }));
 
     return NextResponse.json({
