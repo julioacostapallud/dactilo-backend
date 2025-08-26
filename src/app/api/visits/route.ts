@@ -113,24 +113,23 @@ export async function GET(request: NextRequest) {
     const client = await pool.connect();
     
     try {
-      // Obtener visitas con paginación
+      // Obtener visitas con paginación (sin JOIN por ahora)
       const visitsQuery = `
         SELECT 
-          pv.id,
-          pv.page_url,
-          pv.referrer_url,
-          pv.ip_address,
-          pv.device_type,
-          pv.browser,
-          pv.os,
-          pv.session_id,
-          pv.visit_start,
-          pv.visit_end,
-          pv.time_on_page_seconds,
-          u.email as user_email
-        FROM page_visits pv
-        LEFT JOIN users u ON pv.user_id = u.id
-        ORDER BY pv.visit_start DESC
+          id,
+          page_url,
+          referrer_url,
+          ip_address,
+          device_type,
+          browser,
+          os,
+          session_id,
+          visit_start,
+          visit_end,
+          time_on_page_seconds,
+          user_id
+        FROM page_visits
+        ORDER BY visit_start DESC
         LIMIT $1 OFFSET $2
       `;
       
