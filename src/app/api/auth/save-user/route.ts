@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       console.log('Usuario existente encontrado:', existingUser.email);
       const updatedUser = await updateUser(email, {
         name: name || existingUser.name,
-        image_url: image_url || existingUser.image_url
+        image: image_url || existingUser.image
       });
       
       return NextResponse.json({
@@ -35,8 +35,7 @@ export async function POST(request: NextRequest) {
       const newUser = await createUser({
         email,
         name: name || undefined,
-        image_url: image_url || undefined,
-        provider: provider || 'google'
+        image: image_url || undefined
       });
       
       if (!newUser) {

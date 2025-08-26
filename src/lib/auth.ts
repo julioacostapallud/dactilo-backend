@@ -5,13 +5,13 @@ const pool = new Pool({
 });
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   name?: string;
-  image_url?: string;
-  provider: string;
-  created_at: Date;
-  updated_at: Date;
+  image?: string;
+  emailVerified?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
@@ -30,13 +30,12 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function createUser(userData: {
   email: string;
   name?: string;
-  image_url?: string;
-  provider: string;
+  image?: string;
 }): Promise<User | null> {
   try {
     const result = await pool.query(
-      'INSERT INTO users (email, name, image_url, provider) VALUES ($1, $2, $3, $4) RETURNING *',
-      [userData.email, userData.name, userData.image_url, userData.provider]
+      'INSERT INTO users (id, email, name, image) VALUES ($1, $2, $3, $4) RETURNING *',
+      [userData.email, userData.email, userData.name, userData.image]
     );
     return result.rows[0];
   } catch (error) {
@@ -47,12 +46,12 @@ export async function createUser(userData: {
 
 export async function updateUser(email: string, userData: {
   name?: string;
-  image_url?: string;
+  image?: string;
 }): Promise<User | null> {
   try {
     const result = await pool.query(
-      'UPDATE users SET name = $1, image_url = $2, updated_at = CURRENT_TIMESTAMP WHERE email = $3 RETURNING *',
-      [userData.name, userData.image_url, email]
+      'UPDATE users SET name = $1, image = $2, "updatedAt" = CURRENT_TIMESTAMP WHERE email = $3 RETURNING *',
+      [userData.name, userData.image, email]
     );
     return result.rows[0];
   } catch (error) {
@@ -63,7 +62,7 @@ export async function updateUser(email: string, userData: {
 
 export async function getAllUsers(): Promise<User[]> {
   try {
-    const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM users ORDER BY "createdAt" DESC');
     return result.rows;
   } catch (error) {
     console.error('Error getting all users:', error);
