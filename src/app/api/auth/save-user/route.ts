@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     
     if (existingUser) {
       // Usuario existe, actualizar información si es necesario
-      console.log('Usuario existente encontrado:', existingUser.email);
+      console.log('🔵 REGISTRO GOOGLE - Usuario existente:', existingUser.email);
       const updatedUser = await updateUser(email, {
         name: name || existingUser.name,
         image: image_url || existingUser.image
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // Crear nuevo usuario
-      console.log('Creando nuevo usuario:', email);
+      console.log('🔵 REGISTRO GOOGLE - Creando nuevo usuario:', email);
       const newUser = await createUser({
         email,
         name: name || undefined,
@@ -39,12 +39,14 @@ export async function POST(request: NextRequest) {
       });
       
       if (!newUser) {
+        console.error('❌ REGISTRO GOOGLE - Error al crear usuario en la base de datos');
         return NextResponse.json(
           { error: 'Error al crear usuario en la base de datos' },
           { status: 500 }
         );
       }
       
+      console.log('✅ REGISTRO GOOGLE - Usuario creado exitosamente:', newUser.email);
       return NextResponse.json({
         success: true,
         user: newUser,
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Error saving user:', error);
+    console.error('❌ REGISTRO GOOGLE - Error interno:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
