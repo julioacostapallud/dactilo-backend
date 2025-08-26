@@ -37,7 +37,8 @@ function getDeviceInfo(userAgent: string) {
 // Función para generar un sessionId único
 function generateSessionId(ipAddress: string, userAgent: string): string {
   const timestamp = Date.now();
-  const hash = require('crypto').createHash('md5')
+  const crypto = require('crypto');
+  const hash = crypto.createHash('md5')
     .update(`${ipAddress}-${userAgent}-${timestamp}`)
     .digest('hex');
   return hash.substring(0, 16);
@@ -63,25 +64,7 @@ export async function POST(request: NextRequest) {
     // Obtener información del dispositivo
     const { deviceType, browser, os } = getDeviceInfo(userAgent);
     
-    // Verificar si ya existe una visita reciente (últimos 30 minutos) con la misma IP y sessionId
-    const existingVisit = await sql`
-      SELECT id FROM page_visits 
-      WHERE ip_address = ${ipAddress} 
-      AND session_id = ${sessionId}
-      AND page_url = ${pageUrl}
-      AND visit_start > NOW() - INTERVAL '30 minutes'
-      LIMIT 1
-    `;
-    
-    if (existingVisit.rows.length > 0) {
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Visita ya registrada recientemente',
-        visitId: existingVisit.rows[0].id 
-      });
-    }
-    
-    // Insertar nueva visita
+    // Insertar nueva visita (simplificado para pruebas)
     const result = await sql`
       INSERT INTO page_visits (
         user_id, page_url, referrer_url, ip_address, user_agent, 
@@ -102,7 +85,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error registrando visita:', error);
     return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
+      { success: false, error: 'Error interno del servidor: ' + error.message },
       { status: 500 }
     );
   }
