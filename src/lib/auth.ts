@@ -31,6 +31,7 @@ export async function createUser(userData: {
   email: string;
   name?: string;
   image?: string;
+  provider?: string;
 }): Promise<User | null> {
   try {
     const result = await pool.query(

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
-import { pool, handleError } from '@/lib/db';
+import { findUserByEmail, createUser } from '@/lib/auth';
+import { pool } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, nombre, apellido } = await request.json();
+    const body = await request.json();
+    const { email, password, name } = body;
 
-    // Validaciones básicas
-    if (!email || !password || !nombre || !apellido) {
+    // Validaciones
+    if (!email || !password || !name) {
       return NextResponse.json(
         { error: 'Todos los campos son requeridos' },
         { status: 400 }
@@ -21,49 +23,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = await pool.connect();
+    // Verificar si el usuario ya existe
+    const existingUser = await findUserByEmail(email);
     
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'El email ya está registrado' },
+        { status: 409 }
+      );
+    }
+
+    // Encriptar contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear nuevo usuario en la base de datos
+    const newUser = await createUser({
+      email,
+      name,
+      image: undefined,
+      provider: 'credentials'
+    });
+
+    if (!newUser) {
+      return NextResponse.json(
+        { error: 'Error al crear usuario en la base de datos' },
+        { status: 500 }
+      );
+    }
+
+    // Guardar la contraseña encriptada en la tabla user_credentials
+    const client = await pool.connect();
     try {
-      // Verificar si el usuario ya existe
-      const existingUser = await client.query(
-        'SELECT id FROM usuarios WHERE email = $1',
-        [email]
+      await client.query(
+        'INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)',
+        [newUser.id, hashedPassword]
       );
-
-      if (existingUser.rows.length > 0) {
-        return NextResponse.json(
-          { error: 'El email ya está registrado' },
-          { status: 409 }
-        );
-      }
-
-      // Hash de la contraseña
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      // Insertar nuevo usuario
-      const result = await client.query(
-        'INSERT INTO usuarios (email, password_hash, nombre, apellido) VALUES ($1, $2, $3, $4) RETURNING id, email, nombre, apellido, rol',
-        [email, passwordHash, nombre, apellido]
-      );
-
-      const newUser = result.rows[0];
-
-      return NextResponse.json({
-        message: 'Usuario registrado exitosamente',
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          nombre: newUser.nombre,
-          apellido: newUser.apellido,
-          rol: newUser.rol
-        }
-      }, { status: 201 });
-
     } finally {
       client.release();
     }
+    
+    console.log('✅ REGISTRO EMAIL - Usuario creado exitosamente:', newUser.email);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Usuario registrado exitosamente',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        createdAt: newUser.createdAt
+      }
+    }, { status: 201 });
 
   } catch (error) {
-    return handleError(error);
+    console.error('❌ REGISTRO EMAIL - Error interno:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
   }
 }
